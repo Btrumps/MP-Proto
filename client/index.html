@@ -5,6 +5,9 @@
 	var ctx = document.getElementById("ctx").getContext("2d");
 	ctx.font = '30px Arial';
 
+	document.addEventListener('keydown', keyDownHandler);
+	document.addEventListener('keyup', keyUpHandler);
+
 	var socket = io();
 
 	socket.on('newPositions', function(data) {
@@ -13,5 +16,32 @@
 			ctx.fillText(data[i].number, data[i].x, data[i].y);
 		}
 	});
+
+
+	function keyDownHandler(evt) {
+		setValuesForKey(evt, true);
+	}
+
+	function keyUpHandler(evt) {
+		setValuesForKey(evt, false);		
+	}
+
+	function setValuesForKey(evt, value) {
+		switch (evt.code) {
+			case "KeyW":
+				socket.emit('keyPress', {inputId:'up', state: value});
+				break;
+			case "KeyS":
+				socket.emit('keyPress', {inputId:'down', state: value});
+				break;
+			case "KeyA":
+				socket.emit('keyPress', {inputId:'left', state: value});
+				break;
+			case "KeyD":
+				socket.emit('keyPress', {inputId:'right', state: value});
+				break;
+
+		}
+	}
 
 </script>
