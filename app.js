@@ -13,4 +13,12 @@ console.log("Server Started.");
 var io = require('socket.io')(serv,{});
 io.sockets.on('connection', function(socket) {
 	console.log('socket connection');
+
+	socket.on('happy', function(data) {
+		console.log('happy because ' + data.reason);
+	});
+
+	socket.emit('serverMsg', {
+		msg: 'Welcome to my game, version 1.0'
+	});
 });
