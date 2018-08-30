@@ -68,7 +68,7 @@ function Player(id) {
 }
 Player.prototype = Object.create(Entity.prototype);
 
-Player.list = {};
+Player.list = {}; // This creates a static list/array, specific to Players
 
 Player.onConnect = function(socket) {
 	var newPlayer = new Player(socket.id);
@@ -105,10 +105,57 @@ Player.update = function() {
 	return pack;
 }
 
+function Bullet(angle, id) {
+	Entity.call(this);
+
+	this.id = id;
+	this.velX = Math.cos(angle/180 * Math.PI) * 1;
+	this.velY = Math.sin(angle/180 * Math.PI) * 1;
+
+	this.timer = 0;
+	this.toRemove = false;
+
+	entityMove = this.move;
+	this.move = function() {
+		if (this.timer > 100) {
+			this.toRemove = true;
+		} else {
+			this.timer++;
+			entityMove();
+		}
+		
+	}
+	Bullet.list[id] = this;
+}
+Bullet.prototype = Object.create(Entity.prototype);
+
+Bullet.list = {};
+
+var bulletIdCounter = 0;
+Bullet.update = function() {
+	if (Math.random() < 0.1) {
+		bulletIdCounter++;
+		Bullet(Math.random() * 360, bulletIdCounter); // create a bullet going in a random direction
+	}
+
+	var pack = []; // Array which will contain all client's bullet info
+	for (var i in Bullet.list) {
+		var bullet = Bullet.list[i];
+		bullet.move();
+		pack.push({
+			x: bullet.x,
+			y: bullet.y
+		});
+	}
+
+	return pack;
+}
+
 var clientNumber = 0;
 var io = require('socket.io')(serv,{});
-
-// When a player connects, this function is called
+////////////////////////////////////////////////////////////////
+//////// WHEN A CLIENT CONNECTS, THIS FUNCTION IS CALLED ///////
+////////////////////////////////////////////////////////////////
 io.sockets.on('connection', function(socket) {
 	clientNumber++; // Increases number to make sure no two clients share same id
 	socket.id = clientNumber;
@@ -124,7 +171,10 @@ io.sockets.on('connection', function(socket) {
 });
 
 setInterval(function() {
-	var pack = Player.update(); // Returns all client information to be passed to each client
+	var pack = {
+		player: Player.update(),
+		bullet: Bullet.update()
+	}
 
 	for (var i in SOCKET_LIST) {
 		var socket = SOCKET_LIST[i];
