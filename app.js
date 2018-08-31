@@ -105,37 +105,36 @@ Player.update = function() {
 	return pack;
 }
 
-function Bullet(angle, id) {
+var bulletIdCounter = 0;
+
+function Bullet(angle) {
 	Entity.call(this);
 
-	this.id = id;
-	this.velX = Math.cos(angle/180 * Math.PI) * 1;
-	this.velY = Math.sin(angle/180 * Math.PI) * 1;
+	this.id = bulletIdCounter;
+	this.velX = Math.cos(angle/180 * Math.PI) * 5;
+	this.velY = Math.sin(angle/180 * Math.PI) * 5;
 
 	this.timer = 0;
-	this.toRemove = false;
 
-	entityMove = this.move;
+	this.entityMove = this.move;
 	this.move = function() {
-		if (this.timer > 100) {
-			this.toRemove = true;
+		if (this.timer > 180) {
+			delete Bullet.list[this.id];
 		} else {
 			this.timer++;
-			entityMove();
+			this.entityMove();
 		}
-		
 	}
-	Bullet.list[id] = this;
+	Bullet.list[this.id] = this;
 }
 Bullet.prototype = Object.create(Entity.prototype);
 
 Bullet.list = {};
 
-var bulletIdCounter = 0;
 Bullet.update = function() {
 	if (Math.random() < 0.1) {
 		bulletIdCounter++;
-		Bullet(Math.random() * 360, bulletIdCounter); // create a bullet going in a random direction
+		var newBullet = new Bullet(Math.random() * 360);
 	}
 
 	var pack = []; // Array which will contain all client's bullet info
@@ -161,6 +160,8 @@ io.sockets.on('connection', function(socket) {
 	socket.id = clientNumber;
 	SOCKET_LIST[socket.id] = socket;	
 
+	console.log('socket connection from ' + socket.id);
+
 	Player.onConnect(socket);
 
 	// This will remove the player from the socket/player list
@@ -173,7 +174,7 @@ io.sockets.on('connection', function(socket) {
 setInterval(function() {
 	var pack = {
 		player: Player.update(),
-		bullet: Bullet.update()
+		bullet: Bullet.update(),
 	}
 
 	for (var i in SOCKET_LIST) {
