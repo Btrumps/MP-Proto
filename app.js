@@ -11,6 +11,7 @@ serv.listen(2000);
 console.log("Server Started.");
 
 var SOCKET_LIST = {};
+var DEBUG = true;
 
 function Entity() {
 	this.x = 250;
@@ -150,6 +151,36 @@ Bullet.update = function() {
 	return pack;
 }
 
+// List of users and passwords. Right now, this will clear every time the server restarts
+// This is because we don't have a database yet.
+var USERS = {
+	// username : password
+	"bob":"asd",
+	"brandon":"password",
+	"admin":"password",
+}
+
+// Callback == the function passed in. It will not run until setTimeout is finished
+// We use Set Timeout to emulate a server connecting to a database
+var isValidPassword = function(data, callback) {
+	setTimeout(function() {
+		callback(USERS[data.username] === data.password);
+	}, 10);
+}
+
+var isUsernameTaken = function(data, callback) {
+	setTimeout(function() {
+		callback(USERS[data.username]);
+	}, 10);
+}
+
+var addUser = function(data, callback) {
+	setTimeout(function() {
+		USERS[data.username] = data.password;
+		callback(); // This is used if the function passed in doesn't return anything 
+	}, 10);
+}
+
 var clientNumber = 0;
 var io = require('socket.io')(serv,{});
 ////////////////////////////////////////////////////////////////
@@ -162,19 +193,60 @@ io.sockets.on('connection', function(socket) {
 
 	console.log('socket connection from ' + socket.id);
 
-	Player.onConnect(socket);
+	socket.on('signIn', function(data) {
+		if (isValidPassword(data, function(result) {
+			if (result) {
+				Player.onConnect(socket);
+				socket.emit('signInResponse', {success: true});
+			} else {
+				socket.emit('signInResponse', {success: false});
+			}
+		}));
+	});
 
-	// This will remove the player from the socket/player list
+	socket.on('signUp', function(data) {
+		if (isUsernameTaken(data, function(result) {
+			 if (result) {
+				socket.emit('signUpResponse', {success: false});
+			} else {
+				addUser(data, function() {
+					socket.emit('signUpResponse', {success: true});
+				});
+			}
+		}));
+	});
+
+	// This will remove the client from the socket/player list
 	socket.on('disconnect', function() {
 		delete SOCKET_LIST[socket.id];
 		Player.onDisconnect(socket);
 	});
+
+	// When a client submits a message on the chatForm, the server sends the message to all clients
+	socket.on('sendMsgToServer', function(data) {
+		var playerName = "Player" + socket.id;
+
+		for (var i in SOCKET_LIST) {
+			SOCKET_LIST[i].emit('addToChat', playerName + ': ' + data);
+		}
+	});
+
+	// This message allows the client to check values on the servers end
+	socket.on('evalServer', function(data) {
+		if (DEBUG) {
+			var answer = eval(data);
+			socket.emit('evalAnswer', answer);
+		} else {
+			socket.emit('evalAnswer', "Error : Can't process that information, not in debug mode");
+		}
+	});
 });
 
+// Main game loop
 setInterval(function() {
 	var pack = {
-		player: Player.update(),
-		bullet: Bullet.update(),
+		player: Player.update(), // Loops through all players, runs their move() function and updates positions
+		bullet: Bullet.update(), // Loops through all bullets, runs their move() function and updates positions
 	}
 
 	for (var i in SOCKET_LIST) {

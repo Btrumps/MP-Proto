@@ -1,14 +1,76 @@
-<canvas id = "ctx" width = "500" height = "500" style = "border:1px solid #000000;"></canvas> <!--- creates canvas --->
+<div id = "signDiv">
+		Username: <input id = "signDiv-username" type = "text"></input><br>
+		Password: <input id = "signDiv-password" type = "password"></input>
+		<button id = "signDiv-signIn">Sign In</button>
+		<button id = "signDiv-signUp">Sign Up</button>
+</div>
+
+<!--- by making the display: none, the game won't show, only the sign in --->
+<div id = "gameDiv" style = "display: none;">
+	<!--- creates canvas --->
+	<canvas id = "ctx" width = "500" height = "500" style = "border:1px solid #000000;"></canvas>
+
+	<!--- creates chat box, will scroll once there is too much text --->
+	<div id = "chat-text" style = "width: 500px; height: 100px; overflow-y: scroll">
+		<div>Hello!</div>
+	</div>
+
+	<!--- creates an entry field for chatting, we need to make it a form if we want it to run a funtion --->
+	<form id = "chat-form">
+	<input id = "chat-input" type = "text" style = "width: 500px"></input>
+	</form>
+</div>
 
 <script src="https://cdn.socket.io/socket.io-1.4.5.js"></script>
 <script>
+	var socket = io();
+
+	// Sign In/Up Elements
+	var signDiv = document.getElementById('signDiv');
+	var signDivUsername = document.getElementById('signDiv-username');
+	var signDivPassword = document.getElementById('signDiv-password');
+	var signDivSignIn = document.getElementById('signDiv-signIn');
+	var signDivSignUp = document.getElementById('signDiv-signUp');
+
+	signDivSignIn.onclick = function() {
+		socket.emit('signIn', {username:signDivUsername.value, password: signDivPassword.value});
+	}
+
+	signDivSignUp.onclick = function() {
+		socket.emit('signUp', {username:signDivUsername.value, password: signDivPassword.value});
+	}
+
+	socket.on('signInResponse', function(data) {
+		if (data.success) {
+			signDiv.style.display = 'none';
+
+			// inline-block just means visible
+			gameDiv.style.display = 'inline-block'; 
+		} else {
+			alert("Sign in unsuccessful. Either your username or password is incorrect.");
+		}
+	});
+
+	socket.on('signUpResponse', function(data) {
+		if (data.success) {
+			alert("Sign up successful");
+		} else {
+			alert("Sign up unsuccessful. Username is taken.");
+		}
+	});
+
+	// Game Elements
+	var gameDiv = document.getElementById('gameDiv');
+	var chatText = document.getElementById('chat-text');
+	var chatInput = document.getElementById('chat-input');
+	var chatForm = document.getElementById('chat-form');
 	var ctx = document.getElementById("ctx").getContext("2d");
 	ctx.font = '30px Arial';
 
 	document.addEventListener('keydown', keyDownHandler);
 	document.addEventListener('keyup', keyUpHandler);
 
-	var socket = io();
+	
 
 	socket.on('newPositions', function(data) {
 		ctx.clearRect(0,0,500,500); // clears canvas
@@ -20,6 +82,29 @@
 			ctx.fillRect(data.bullet[j].x-5, data.bullet[j].y-5, 10,10);
 		}
 	});
+
+	socket.on('addToChat', function(data) {
+		chatText.innerHTML += '<div>' + data + '</div>';
+	});
+
+	socket.on('evalAnswer', function(data) {
+		console.log(data);
+	});
+
+	// This runs when you press enter on the form
+	chatForm.onsubmit = function(e) {
+		e.preventDefault();
+
+		// If the first character that is typed is a '/', it's a console command for the server
+		if (chatInput.value[0] === '/') {
+			// We pass in everything that is typed, with the exception of the '/'
+			socket.emit('evalServer', chatInput.value.slice(1));
+		} else {
+			socket.emit('sendMsgToServer', chatInput.value);
+		}
+
+		chatInput.value = '';
+	}
 
 
 	function keyDownHandler(evt) {
