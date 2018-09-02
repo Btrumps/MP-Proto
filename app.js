@@ -10,6 +10,41 @@ app.use('/client', express.static(__dirname + '/client'));
 serv.listen(2000);
 console.log("Server Started.");
 
+
+var sql = require('mssql');
+
+var config = {
+        user: 'sa',
+        password: 'omgstop92',
+        server: 'localhost', 
+        database: 'myGame',
+        options: {
+        instanceName: 'BrandonSQL',
+        encrypt : true
+    }
+};
+
+var notConnected = true;
+
+sql.connect(config, function(err) {
+	if (err) console.log (err);
+	console.log ('connected to sql server');
+	notConnected = false;
+});
+
+function sqlQuery(dbQuery, cb) {
+	var request = new sql.Request();
+
+	//query
+	request.query(dbQuery, function(err, result) {
+		if (err) console.log('dbQuery: ' + err);
+		console.log('callback running');
+		cb(result.recordset);
+	});
+}
+
+// queryResult = sqlQuery('some query');
+
 var SOCKET_LIST = {};
 var DEBUG = true;
 
@@ -181,6 +216,7 @@ var addUser = function(data, callback) {
 	}, 10);
 }
 
+var queryResult;
 var clientNumber = 0;
 var io = require('socket.io')(serv,{});
 ////////////////////////////////////////////////////////////////
@@ -189,9 +225,14 @@ var io = require('socket.io')(serv,{});
 io.sockets.on('connection', function(socket) {
 	clientNumber++; // Increases number to make sure no two clients share same id
 	socket.id = clientNumber;
-	SOCKET_LIST[socket.id] = socket;	
+	SOCKET_LIST[socket.id] = socket;
 
 	console.log('socket connection from ' + socket.id);
+
+	sqlQuery('SELECT * FROM tblUsers', function(res) {
+		console.log('stored query');
+		queryResult = res;
+	});
 
 	socket.on('signIn', function(data) {
 		if (isValidPassword(data, function(result) {
