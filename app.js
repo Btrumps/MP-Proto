@@ -229,8 +229,8 @@ io.sockets.on('connection', function(socket) {
 
 	console.log('socket connection from ' + socket.id);
 
-	sqlQuery('SELECT * FROM tblUsers', function(res) {
-		console.log('stored query');
+	sqlQuery("SELECT * FROM tblUsers WHERE username = 'brandon';", function(res) {
+		console.log(res);
 		queryResult = res;
 	});
 
